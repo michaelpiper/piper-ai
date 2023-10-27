@@ -1,2 +1,4 @@
-import {ai} from './ai.js'
-await ai.connect()
+import { AI } from './ai.js'
+
+export {createAI, AI, AICursor, AIError} from './ai.js'
+export default AI

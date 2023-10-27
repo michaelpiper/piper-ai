@@ -1,0 +1,1 @@
+{"version":3,"file":"text-reasoning.node.d.ts","sourceRoot":"","sources":["../../src/neurons/text-reasoning.node.ts"],"names":[],"mappings":";AACA,OAAO,EAAE,KAAK,EAAE,EAAE,MAAM,UAAU,CAAA;AAIlC,MAAM,WAAW,aAAa;IAC5B,EAAE,EAAE,MAAM,CAAA;IACV,QAAQ,EAAE,MAAM,CAAA;IAChB,IAAI,EAAE,MAAM,CAAA;CACb;AAmDD,eAAO,MAAM,iBAAiB,OAAQ,EAAE,SAkBvC,CAAA"}

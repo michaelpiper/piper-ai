@@ -2,8 +2,6 @@ import { type AI } from '../ai.js'
 import { type MemoryInput } from './memory.node.js'
 import { type Output } from './output.node.js'
 import { type TextReasoning } from './text-reasoning.node.js'
-import shortid from 'shortid'
-// import { DBPlugin } from 'zeroant-common/plugins/db.plugin'
 export interface Input {
   id: string
   sourceId: string
@@ -17,17 +15,18 @@ export interface Input {
 }
 export const inputNode = async (ai: AI) => {
   ai.on('input', (input: Input) => {
-    const id = shortid.generate()
+    const reasoning = ai.cursor(input.type.plain + '-reasoning')
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    ai.on(`result-${id}`, async (data: any) => {
-      const memId = shortid.generate()
-      ai.emit('memory', { id: memId, action: 'write', doc: { trigger: input.sourceId, data: [{ trigger: input.sourceId, mode: 'input', type: input.type.plain, value: input.data }] } } satisfies MemoryInput)
-      await ai.observe(`memory-${memId}`, (v)=>v)
-      ai.emit('output', { sourceId: input.sourceId, type: input.type, id: input.id, source: input.source, destination: input.destination, ...data } satisfies Output)
+    reasoning.onResult(async (data: any) => {
+      const memory = ai.cursor('memory')
+      const output = ai.cursor('output')
+      memory.request<MemoryInput>({id: memory.getId(), action: 'write', doc: { trigger: input.sourceId, data: [{ trigger: input.sourceId, mode: 'input', type: input.type.plain, value: input.data }] } })
+      await ai.observe(memory.resultId, (v)=>v)
+      output.result<Output>({ sourceId: input.sourceId, type: input.type, id: input.id, source: input.source, destination: input.destination, ...data })
     })
-    ai.once(`result-${id}-end`, () => {
-      ai.listeners(`result-${id}`).map((listener: any) => ai.off(`result-${id}`, listener))
+    reasoning.onceEnd(() => {
+      reasoning.off('result')
     })
-    ai.emit(input.type.plain + '-reasoning', { sourceId: input.sourceId, data: input.data, id } satisfies TextReasoning)
+    reasoning.request<TextReasoning>( { sourceId: input.sourceId, data: input.data, id: reasoning.getId() })
   })
 }

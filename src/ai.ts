@@ -5,7 +5,6 @@ import { outputNode } from './neurons/output.node.js'
 import { inputNode } from './neurons/input.node.js'
 import { textReasoningNode } from './neurons/text-reasoning.node.js'
 import { MongoClient } from 'mongodb'
-import { config } from 'dotenv'
 import shortid from 'shortid'
 import { researchNode } from './neurons/research.node.js'
 import { dictionaryNode } from './neurons/dictionary.node.js'
@@ -16,74 +15,174 @@ import { voiceNode } from './neurons/voice.node.js'
 export class AIError extends Error {
 
 }
-export class AICursor<Request=any, Response=any, End=any> extends String {
+interface Ctx {
+
+  onceEndListeners: Function[]
+  onEndListeners: Function[]
+
+  onceResultListeners: Function[]
+  onResultListeners: Function[]
+
+  onceRequestListeners: Function[]
+  onRequestListeners: Function[]
+
+}
+const ctx: Ctx = {
+  onceEndListeners: [],
+  onEndListeners: [],
+
+  onceResultListeners: [],
+  onResultListeners: [],
+
+  onceRequestListeners: [],
+  onRequestListeners: []
+}
+export class AICursor<Request = any, Response = any, End = any> extends String {
+  constructor(private ai: AI, value: string){
+    super(value)
+  }
   _id = shortid.generate()
 
-  get resultId () {
+
+  get resultId() {
     return this.concat('-').concat(this._id)
   }
 
-  getId () {
+  getId() {
     return this._id
   }
 
-  request<T= Request>(input: T) {
-    return ai.emit(this.requestId, input)
+  request<T = Request>(input: T, t: 'emit'|'broadcast'| 'tap' = 'emit'): boolean {
+    return this.ai[t](this.requestId, input, this.getId()) as never
   }
 
-  result<T= Response>(input: T) {
-    return ai.emit(this.resultId, input)
+  result<T = Response>(input: T, t: 'emit'|'broadcast'| 'tap' = 'emit'): boolean {
+    return this.ai[t](this.resultId, input, this.getId())as never
   }
 
-  end<T= End>(input?: T) {
-    return ai.emit(this.endId, input)
+  end<T = End>(input?: T, t: 'emit'|'broadcast'| 'tap' = 'emit'): boolean {
+    return this.ai[t](this.endId, input, this.getId()) as never
+  }
+  onResult(listener: Function) {
+    ctx.onResultListeners.push(listener)
+    return this.ai.on(this.resultId, listener as any)
   }
 
-  get requestId () {
+  onceResult(listener: Function) {
+    ctx.onceResultListeners.push(listener)
+    return this.ai.on(this.resultId, listener as any)
+  }
+
+  onEnd(listener: Function) {
+    ctx.onEndListeners.push(listener)
+    return this.ai.on(this.endId, listener as any)
+  }
+  onceEnd(listener: Function) {
+    ctx.onceEndListeners.push(listener)
+    return this.ai.once(this.endId, listener as any)
+  }
+
+  off(event: 'end' | 'onEnd' | 'onceEnd' | 'onResult' | 'onceResult' | 'result' | 'onRequest' | 'onceRequest' | 'request' | 'all') {
+    switch (event) {
+      case 'all':
+      case 'end':
+      case 'onceEnd':
+        this._offOnceEnd()
+      case 'all':
+      case 'end':
+      case 'onEnd':
+        this._offOnEnd()
+      case 'all':
+      case 'result':
+      case 'onResult':
+        this._off(ctx.onResultListeners)
+      case 'all':
+      case 'result':
+      case 'onceResult':
+        this._off(ctx.onceResultListeners)
+      case 'all':
+      case 'request':
+      case 'onRequest':
+        this._off(ctx.onRequestListeners)
+      case 'all':
+      case 'request':
+      case 'onceRequest':
+        this._off(ctx.onceRequestListeners)
+    }
+  }
+  _offOnceEnd() {
+    this._off(ctx.onceEndListeners)
+  }
+  _offOnEnd() {
+    this._off(ctx.onEndListeners)
+  }
+  _off(listeners: Function[]) {
+    let listener: Function | undefined = undefined
+    while ((listener = listeners.pop()) !== undefined) {
+      this.ai.off(this.requestId, listener as any)
+    }
+  }
+  _offX(listeners: Function[]) {
+    let listener: Function | undefined = undefined
+    while ((listener = listeners.shift()) !== undefined) {
+      this.ai.off(this.requestId, listener as any)
+    }
+  }
+
+
+  get requestId() {
     return this.toString()
   }
 
-  get endId () {
+  get endId() {
     return this.concat('-').concat(this._id).concat('-end')
   }
 }
 export class AI extends SusXSubscription {
+
   store!: MongoClient
-  #id:number = 1
-  
-  id(): string{
+  #id: number = 1
+  cursorType = ['ticker']
+  constructor(public config: Record<string, string|undefined>){
+    super()
+  }
+  id(): string {
     return (this.#id++).toString();
   }
-  addNeuron (neuron: (ai: this) => any): this {
+  addNeuron(neuron: (ai: this) => any): this {
     neuron(this)
     return this
   }
 
-  document (name: string, dbName?: string) {
+  document(name: string, dbName?: string) {
     return this.store.db(dbName).collection(name)
   }
 
-  cursor<Req, Res, End>(name: string, id?: string): AICursor<Req, Res, End> {
-    const result = new AICursor<Req, Res, End>(name)
+  documentWithSession(name: string, dbName?: string){
+    const session = this.store.startSession()
+    return [session, this.document(name, dbName)]
+  }
+
+  cursor<Req, Res, End, >(name: string, id?: string): AICursor<Req, Res, End> {
+    const result = new AICursor<Req, Res, End>(this, name)
     if (id !== undefined && id !== null) {
       result._id = id
     }
     return result
   }
 
-  async initialize () {
-    config()
-    if (process.env.DATABASE_URL === null || process.env.DATABASE_URL === undefined) {
+  async initialize() {
+    if (this.config.DATABASE_URL === null || this.config.DATABASE_URL === undefined) {
       throw new AIError('unable to create store require a db')
     }
-    this.store = await MongoClient.connect(process.env.DATABASE_URL as string)
+    this.store = await MongoClient.connect(this.config.DATABASE_URL as string)
   }
-  connect(){
-   this.broadcast('boot', Date.now())
+  connect() {
+    this.broadcast('boot', Date.now())
   }
 }
-export const ai = new AI()
-ai.addNeuron(storeNode)
+export const createAI = (config: Record<string, string|undefined>) => new AI(config)
+  .addNeuron(storeNode)
   .addNeuron(terminalNode)
   .addNeuron(memoryNode)
   .addNeuron(outputNode)
@@ -94,5 +193,3 @@ ai.addNeuron(storeNode)
   .addNeuron(voiceNode)
   .addNeuron(dictionaryNode)
   .addNeuron(textReasoningNode)
-
-await ai.initialize()

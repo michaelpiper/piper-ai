@@ -45,12 +45,12 @@ interface QueryResult {
   'htmlFormattedUrl': `https://${string}` | `http://${string}`
   'pagemap': QueryResultPageMap
 }
-const findFromGoogle = async (query: string) => {
+const findFromGoogle = async (ai: AI, query: string) => {
   const variable = query?.toLowerCase()
   if (query===undefined || query === null || query === '') {
     return []
   }
-  const result = await axios.get((process.env.GOOL as string).concat(`&q=${query}`)).then(async (r) => r.data).catch(() => ({ items: [] })) as { items: QueryResult[] }
+  const result = await axios.get((ai.config.GOOL as string).concat(`&q=${query}`)).then(async (r) => r.data).catch(() => ({ items: [] })) as { items: QueryResult[] }
   return result.items.filter((item: QueryResult) => {
     const title = item.title.toLowerCase()
     const snippet = item.snippet.toLowerCase()
@@ -103,7 +103,7 @@ export const researchNode = (ai: AI) => {
     const variable = input.data.toString('utf8')
    
     cursor.result<ResearchOutput>({ id: input.id, data: Buffer.from(`Sorry am not sure i understand what ${variable} means`) })
-    const results = await findFromGoogle(variable)
+    const results = await findFromGoogle(ai, variable)
       .then((result) => prepareResult(cursor, input, variable, result))
     await prepareMostAppropriateResult(variable, [results])
     cursor.end()

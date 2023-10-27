@@ -1,0 +1,1 @@
+{"version":3,"file":"terminal.node.d.ts","sourceRoot":"","sources":["../../src/neurons/terminal.node.ts"],"names":[],"mappings":";AAAA,OAAO,EAAE,KAAK,EAAE,EAAE,MAAM,UAAU,CAAA;AAIlC,MAAM,WAAW,aAAa;IAC5B,EAAE,EAAE,MAAM,CAAA;IACV,IAAI,EAAE,MAAM,CAAA;CACb;AACD,MAAM,WAAW,cAAc;IAC7B,EAAE,EAAE,MAAM,CAAA;IACV,IAAI,EAAE,MAAM,CAAA;CACb;AACD,eAAO,MAAM,YAAY,OAAc,EAAE,kBA2BxC,CAAA"}

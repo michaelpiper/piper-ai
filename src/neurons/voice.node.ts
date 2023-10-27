@@ -7,6 +7,7 @@ export const voiceNode = (ai: AI) => {
   const queue = new WorkerQueue<{id:string, data:Buffer|null}>({
     concurrency: 1
   })
+  queue.run()
   // $ mplayer foo.mp3 
   queue.subscribe(async (input)=>{
     const cursor = ai.cursor('voice', input.id)
