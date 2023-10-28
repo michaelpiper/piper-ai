@@ -29,15 +29,21 @@ export class WorkerQueue<T> {
       const run = async(q:this): Promise<any> =>{
         // console.log('Enqueue event in worker queue', q.running , q.concurrency, q.queue.length);
         const  jobs: Promise<void>[] = []
-        while (q.running < q.concurrency && q.queue.length>0) {
-          this.running++;
+        await new Promise((resolve)=>{
+          let hasResolved =false
+         while (q.running < q.concurrency && q.queue.length>0) {
+          this.running++
           const payload = q.queue.pop();
           jobs.push (q._execute(payload as any).then(()=>{
             q.running--;
+            if(!hasResolved){
+              resolve(undefined)
+              hasResolved = true
+            }
           }));
           // console.log('Enqueue event done', this.running , this.concurrency, this.queue.length);
         }
-        await Promise.all(jobs)
+       })
       }
       while(!this.completed){
         if (this.queue.length>0) {

@@ -4,7 +4,7 @@ import { memoryNode } from './neurons/memory.node.js'
 import { outputNode } from './neurons/output.node.js'
 import { inputNode } from './neurons/input.node.js'
 import { textReasoningNode } from './neurons/text-reasoning.node.js'
-import { MongoClient } from 'mongodb'
+import { ClientSession, Collection, MongoClient, Document } from 'mongodb'
 import shortid from 'shortid'
 import { researchNode } from './neurons/research.node.js'
 import { dictionaryNode } from './neurons/dictionary.node.js'
@@ -143,7 +143,7 @@ export class AI extends SusXSubscription {
   store!: MongoClient
   #id: number = 1
   cursorType = ['ticker']
-  constructor(public config: Record<string, string|undefined>){
+  constructor(public config: Record<string, string|number|undefined>){
     super()
   }
   id(): string {
@@ -158,7 +158,7 @@ export class AI extends SusXSubscription {
     return this.store.db(dbName).collection(name)
   }
 
-  documentWithSession(name: string, dbName?: string){
+  documentWithSession(name: string, dbName?: string): [ClientSession, Collection<Document>]{
     const session = this.store.startSession()
     return [session, this.document(name, dbName)]
   }
@@ -175,7 +175,19 @@ export class AI extends SusXSubscription {
     if (this.config.DATABASE_URL === null || this.config.DATABASE_URL === undefined) {
       throw new AIError('unable to create store require a db')
     }
+    this.config.CURRENT_DB_RETRIES ??= 0
+    this.config.MAX_DB_RETRIES ??= 5
+    if(this.config.CURRENT_DB_RETRIES >= this.config.MAX_DB_RETRIES){
+      console.log("retrying db connection reach maximum allowed")
+     return;
+    }
+    (this.config.CURRENT_DB_RETRIES as number)++
     this.store = await MongoClient.connect(this.config.DATABASE_URL as string)
+    this.store.once('error', (error)=>{
+      console.error(error)
+      this.initialize()
+      console.log("retrying db connection")
+    })
   }
   connect() {
     this.broadcast('boot', Date.now())

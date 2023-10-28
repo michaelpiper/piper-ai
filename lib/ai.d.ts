@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import { ClientSession, Collection, MongoClient, Document } from 'mongodb';
 import { SusXSubscription } from 'susx';
 export declare class AIError extends Error {
 }
@@ -25,14 +25,14 @@ export declare class AICursor<Request = any, Response = any, End = any> extends 
 }
 export declare class AI extends SusXSubscription {
     #private;
-    config: Record<string, string | undefined>;
+    config: Record<string, string | number | undefined>;
     store: MongoClient;
     cursorType: string[];
-    constructor(config: Record<string, string | undefined>);
+    constructor(config: Record<string, string | number | undefined>);
     id(): string;
     addNeuron(neuron: (ai: this) => any): this;
-    document(name: string, dbName?: string): import("mongodb").Collection<import("bson").Document>;
-    documentWithSession(name: string, dbName?: string): (import("mongodb").Collection<import("bson").Document> | import("mongodb").ClientSession)[];
+    document(name: string, dbName?: string): Collection<Document>;
+    documentWithSession(name: string, dbName?: string): [ClientSession, Collection<Document>];
     cursor<Req, Res, End>(name: string, id?: string): AICursor<Req, Res, End>;
     initialize(): Promise<void>;
     connect(): void;
